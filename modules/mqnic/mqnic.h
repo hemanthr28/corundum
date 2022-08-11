@@ -138,6 +138,11 @@ struct mqnic_dev {
 	u8 __iomem *hw_addr;
 	u8 __iomem *phc_hw_addr;
 
+	/*Zynq variables*/
+	resource_size_t zynq_hw_regs_size;
+	phys_addr_t zynq_hw_regs_phys;
+	u8 __iomem *zynq_hw_addr;
+
 	resource_size_t app_hw_regs_size;
 	phys_addr_t app_hw_regs_phys;
 	u8 __iomem *app_hw_addr;

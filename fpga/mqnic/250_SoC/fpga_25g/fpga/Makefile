@@ -120,6 +120,8 @@ SYN_FILES += lib/pcie/rtl/pcie_us_if_cc.v
 SYN_FILES += lib/pcie/rtl/pcie_us_if_cq.v
 SYN_FILES += lib/pcie/rtl/pcie_us_cfg.v
 SYN_FILES += lib/pcie/rtl/pulse_merge.v
+SYN_FILES += lib/pcie/rtl/pcie_us_axis_cq_demux.v
+SYN_FILES += lib/pcie/rtl/pcie_us_axis_rc_demux_mod.v
 
 # XDC files
 XDC_FILES = fpga.xdc
@@ -136,6 +138,7 @@ XDC_FILES += ../../../common/syn/vivado/tdma_ber_ch.tcl
 # IP
 IP_TCL_FILES = ip/pcie4_uscale_plus_0.tcl
 IP_TCL_FILES += ip/eth_xcvr_gty.tcl
+IP_TCL_FILES += ip/zynq_ps.tcl
 
 # Configuration
 CONFIG_TCL_FILES = ./config.tcl

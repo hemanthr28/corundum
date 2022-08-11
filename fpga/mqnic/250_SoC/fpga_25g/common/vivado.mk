@@ -85,6 +85,9 @@ create_project.tcl: Makefile $(XCI_FILES_REL) $(IP_TCL_FILES_REL)
 	echo "create_project -force -part $(FPGA_PART) $(FPGA_TOP)" > $@
 	echo "add_files -fileset sources_1 defines.v $(SYN_FILES_REL)" >> $@
 	echo "add_files -fileset constrs_1 $(XDC_FILES_REL)" >> $@
+	echo "update_compile_order -fileset sources_1" >> $@
+	echo "set_property  ip_repo_paths  {/home/hemanthr/corundum/fpga/mqnic/250_SoC/fpga_25g/ip_repo/axilite_2_pcie /home/hemanthr/corundum/fpga/mqnic/250_SoC/fpga_25g/ip_repo/pcie2axilite_bridge} [current_project]" >> $@
+	echo "update_ip_catalog" >> $@
 	for x in $(XCI_FILES_REL); do echo "import_ip $$x" >> $@; done
 	for x in $(IP_TCL_FILES_REL); do echo "source $$x" >> $@; done
 	for x in $(CONFIG_TCL_FILES_REL); do echo "source $$x" >> $@; done
@@ -107,6 +110,8 @@ $(FPGA_TOP).xpr: create_project.tcl update_config.tcl
 # implementation run
 %.runs/impl_1/%_routed.dcp: %.runs/synth_1/%.dcp
 	echo "open_project $*.xpr" > run_impl.tcl
+	echo "reset_run pcie4_uscale_plus_0_synth_1" >> run_impl.tcl
+	echo "launch_runs pcie4_uscale_plus_0_synth_1 -jobs 12" >> run_impl.tcl
 	echo "reset_run impl_1" >> run_impl.tcl
 	echo "launch_runs -jobs 4 impl_1" >> run_impl.tcl
 	echo "wait_on_run impl_1" >> run_impl.tcl
@@ -117,6 +122,7 @@ $(FPGA_TOP).xpr: create_project.tcl update_config.tcl
 	echo "open_project $*.xpr" > generate_bit.tcl
 	echo "open_run impl_1" >> generate_bit.tcl
 	echo "write_bitstream -force $*.bit" >> generate_bit.tcl
+	echo "write_hw_platform -fixed -include_bit -force -file /home/hemanthr/corundum/fpga/mqnic/250_SoC/fpga_25g/fpga/fpga.xsa"  >> generate_bit.tcl
 	vivado -nojournal -nolog -mode batch -source generate_bit.tcl
 	mkdir -p rev
 	EXT=bit; COUNT=100; \

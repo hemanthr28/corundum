@@ -552,6 +552,210 @@ pcie_user_reset_bufg_inst (
     .O(pcie_user_reset)
 );
 
+/*CQ router for zynq and corundum*/
+
+wire [AXIS_PCIE_DATA_WIDTH-1:0]    axis_cq_tdata_zynq;
+wire [AXIS_PCIE_KEEP_WIDTH-1:0]    axis_cq_tkeep_zynq;
+wire                               axis_cq_tlast_zynq;
+wire                               axis_cq_tready_zynq;
+wire [AXIS_PCIE_CQ_USER_WIDTH-1:0] axis_cq_tuser_zynq;
+wire                               axis_cq_tvalid_zynq;
+
+wire [AXIS_PCIE_DATA_WIDTH-1:0]    axis_cq_tdata_cor;
+wire [AXIS_PCIE_KEEP_WIDTH-1:0]    axis_cq_tkeep_cor;
+wire                               axis_cq_tlast_cor;
+wire                               axis_cq_tready_cor;
+wire [AXIS_PCIE_CQ_USER_WIDTH-1:0] axis_cq_tuser_cor;
+wire                               axis_cq_tvalid_cor;
+
+
+/*This is the wrapper of Zynqmp PS and axi peripheral*/
+wire [AXIS_PCIE_DATA_WIDTH-1:0]    axis_cc_tdata_cor;
+wire [AXIS_PCIE_KEEP_WIDTH-1:0]    axis_cc_tkeep_cor;
+wire                               axis_cc_tlast_cor;
+wire [3:0]                         axis_cc_tready_cor;
+wire [AXIS_PCIE_CC_USER_WIDTH-1:0] axis_cc_tuser_cor;
+wire                               axis_cc_tvalid_cor;
+
+wire [AXIS_PCIE_DATA_WIDTH-1:0]    axis_rq_tdata_cor;
+wire [AXIS_PCIE_KEEP_WIDTH-1:0]    axis_rq_tkeep_cor;
+wire                               axis_rq_tlast_cor;
+wire [3:0]                         axis_rq_tready_cor;
+wire [AXIS_PCIE_RC_USER_WIDTH-1:0] axis_rq_tuser_cor;
+wire                               axis_rq_tvalid_cor;
+
+wire [AXIS_PCIE_DATA_WIDTH-1:0]    axis_rc_tdata_zynq;
+wire [AXIS_PCIE_KEEP_WIDTH-1:0]    axis_rc_tkeep_zynq;
+wire                               axis_rc_tlast_zynq;
+wire                               axis_rc_tready_zynq;
+wire [AXIS_PCIE_RC_USER_WIDTH-1:0] axis_rc_tuser_zynq;
+wire                               axis_rc_tvalid_zynq;
+
+wire [AXIS_PCIE_DATA_WIDTH-1:0]    axis_rc_tdata_cor;
+wire [AXIS_PCIE_KEEP_WIDTH-1:0]    axis_rc_tkeep_cor;
+wire                               axis_rc_tlast_cor;
+wire                               axis_rc_tready_cor;
+wire [AXIS_PCIE_RC_USER_WIDTH-1:0] axis_rc_tuser_cor;
+wire                               axis_rc_tvalid_cor;
+
+/*CQ router from Zynq and Corundum to PCIe*/
+wire [1:0] select;
+wire [2:0] bar_id;
+
+pcie_us_axis_cq_demux #(
+    .M_COUNT(2),
+    .AXIS_PCIE_DATA_WIDTH(AXIS_PCIE_DATA_WIDTH),
+    .AXIS_PCIE_KEEP_WIDTH(AXIS_PCIE_KEEP_WIDTH),
+    .AXIS_PCIE_CQ_USER_WIDTH(AXIS_PCIE_CQ_USER_WIDTH)
+    )
+    cq_demux_inst(
+    .clk(pcie_user_clk),
+    .rst(pcie_user_reset),
+
+    .s_axis_cq_tdata(axis_cq_tdata),
+    .s_axis_cq_tkeep(axis_cq_tkeep),
+    .s_axis_cq_tvalid(axis_cq_tvalid),
+    .s_axis_cq_tready(axis_cq_tready),
+    .s_axis_cq_tlast(axis_cq_tlast),
+    .s_axis_cq_tuser(axis_cq_tuser),
+
+    .m_axis_cq_tdata({axis_cq_tdata_zynq, axis_cq_tdata_cor}),
+    .m_axis_cq_tkeep({axis_cq_tkeep_zynq, axis_cq_tkeep_cor}),
+    .m_axis_cq_tvalid({axis_cq_tvalid_zynq, axis_cq_tvalid_cor}),
+    .m_axis_cq_tready({axis_cq_tready_zynq, axis_cq_tready_cor}),
+    .m_axis_cq_tlast({axis_cq_tlast_zynq, axis_cq_tlast_cor}),
+    .m_axis_cq_tuser({axis_cq_tuser_zynq, axis_cq_tuser_cor}),
+    
+    .req_type(),
+    .target_function(),
+    .bar_id(bar_id),
+    .msg_code(),
+    .msg_routing(),
+
+    .enable(1'b1),
+    .drop(1'b0),
+    .select(select)
+    );
+   
+assign select[1] = (bar_id == 3'b010);
+assign select[0] = ~select[1];
+
+/*RC router from Zynq and Corundum to PCIe*/
+wire [1:0] select_rc;
+wire [7:0] req_id;
+wire [7:0] tag_data_temp;
+//wire tag_addr_temp;
+
+pcie_us_axis_rc_demux_mod #(
+    .M_COUNT(2),
+    .AXIS_PCIE_DATA_WIDTH(AXIS_PCIE_DATA_WIDTH),
+    .AXIS_PCIE_KEEP_WIDTH(AXIS_PCIE_KEEP_WIDTH),
+    .AXIS_PCIE_RC_USER_WIDTH(AXIS_PCIE_RC_USER_WIDTH)
+    ) 
+    
+rc_demux_inst(       
+        .clk(pcie_user_clk),
+        .rst(pcie_user_reset),
+        
+        .s_axis_rc_tdata(axis_rc_tdata),
+        .s_axis_rc_tkeep(axis_rc_tkeep),
+        .s_axis_rc_tvalid(axis_rc_tvalid),
+        .s_axis_rc_tready(axis_rc_tready),
+        .s_axis_rc_tlast(axis_rc_tlast),
+        .s_axis_rc_tuser(axis_rc_tuser),
+        
+        .m_axis_rc_tdata({axis_rc_tdata_zynq, axis_rc_tdata_cor}),
+        .m_axis_rc_tkeep({axis_rc_tkeep_zynq, axis_rc_tkeep_cor}),
+        .m_axis_rc_tvalid({axis_rc_tvalid_zynq, axis_rc_tvalid_cor}),
+        .m_axis_rc_tready({axis_rc_tready_zynq, axis_rc_tready_cor}),
+        .m_axis_rc_tlast({axis_rc_tlast_zynq, axis_rc_tlast_cor}),
+        .m_axis_rc_tuser({axis_rc_tuser_zynq, axis_rc_tuser_cor}),
+        
+        .requester_id(req_id),
+        .enable(1'b1),
+        .drop(1'b0),
+        .select(select_rc)
+        );
+        
+assign select_rc[1] = (req_id[7:4] == 4'hF);//{8'h00, 5'b00000, 3'b111});
+assign select_rc[0] = ~select_rc[1];
+
+zynq_ps zynq_ps_inst(
+
+         .clk(pcie_user_clk),
+         .rst(1'b1),
+        
+        //.clk(pl_clk),
+        //.rst(pl_rst),
+        
+        /*PORTS FOR CC/CQ INTERFACES*/
+        /*Switch to PCIe master*/
+        .m_axis_cc_tdata(axis_cc_tdata),
+        .m_axis_cc_tkeep(axis_cc_tkeep),
+        .m_axis_cc_tlast(axis_cc_tlast),
+        .m_axis_cc_tready(axis_cc_tready),
+        .m_axis_cc_tuser(axis_cc_tuser),
+        .m_axis_cc_tvalid(axis_cc_tvalid),
+        
+        /*Request from PCIe to zynq and Corundum*/
+        .s_axis_cq_tdata(axis_cq_tdata_zynq),
+        .s_axis_cq_tkeep(axis_cq_tkeep_zynq),
+        .s_axis_cq_tlast(axis_cq_tlast_zynq),
+        .s_axis_cq_tready(axis_cq_tready_zynq),//rethink - currently only ready from Corundum is used
+        .s_axis_cq_tuser(axis_cq_tuser_zynq),
+        .s_axis_cq_tvalid(axis_cq_tvalid_zynq),
+        
+        /*Corundum to switch*/
+        .s_axis_fpga_cc_tdata(axis_cc_tdata_cor),
+        .s_axis_fpga_cc_tkeep(axis_cc_tkeep_cor),
+        .s_axis_fpga_cc_tlast(axis_cc_tlast_cor),
+        .s_axis_fpga_cc_tready(axis_cc_tready_cor),
+        .s_axis_fpga_cc_tuser(axis_cc_tuser_cor),
+        .s_axis_fpga_cc_tvalid(axis_cc_tvalid_cor),
+        
+        //.S00_ARB_REQ_SUPPRESS_0(),
+        //.S01_ARB_REQ_SUPPRESS_0(),
+        //.S00_ARB_REQ_SUPPRESS_0(1'b0),
+        //.S01_ARB_REQ_SUPPRESS_0(1'b1),
+        
+        /*PORTS FOR RC/RQ INTERFACES*/
+        /*Switch to PCIe master*/
+        .m_axis_rq_tdata(axis_rq_tdata),
+        .m_axis_rq_tkeep(axis_rq_tkeep),
+        .m_axis_rq_tlast(axis_rq_tlast),
+        .m_axis_rq_tready(axis_rq_tready),
+        .m_axis_rq_tuser(axis_rq_tuser),
+        .m_axis_rq_tvalid(axis_rq_tvalid),
+        
+        /*Request from PCIe to zynq and Corundum*/
+        .s_axis_rc_tdata(axis_rc_tdata_zynq),
+        .s_axis_rc_tkeep(axis_rc_tkeep_zynq),
+        .s_axis_rc_tlast(axis_rc_tlast_zynq),
+        .s_axis_rc_tready(axis_rc_tready_zynq),
+        .s_axis_rc_tuser(axis_rc_tuser_zynq),
+        .s_axis_rc_tvalid(axis_rc_tvalid_zynq),
+        
+        /*Corundum to switch*/
+        .s_axis_fpga_rq_tdata(axis_rq_tdata_cor),
+        .s_axis_fpga_rq_tkeep(axis_rq_tkeep_cor),
+        .s_axis_fpga_rq_tlast(axis_rq_tlast_cor),
+        .s_axis_fpga_rq_tready(axis_rq_tready_cor),
+        .s_axis_fpga_rq_tuser(axis_rq_tuser_cor),
+        .s_axis_fpga_rq_tvalid(axis_rq_tvalid_cor)
+        
+        //.Op1_0()
+        //RQ interface 
+//        .S00_ARB_REQ_SUPPRESS_0(),
+//        .S01_ARB_REQ_SUPPRESS_1(1'b1),
+//        //CC interface 
+//        .S00_ARB_REQ_SUPPRESS_1(),
+//        .S01_ARB_REQ_SUPPRESS_0(1'b1) 
+        
+        //.tag_data_out_0(tag_data_temp)
+        //.tag_addr_out_0(tag_addr_temp)
+        
+);
+
 pcie4_uscale_plus_0
 pcie4_uscale_plus_inst (
     .pci_exp_txn(pcie_tx_n),
@@ -1333,33 +1537,33 @@ core_inst (
     /*
      * PCIe
      */
-    .m_axis_rq_tdata(axis_rq_tdata),
-    .m_axis_rq_tkeep(axis_rq_tkeep),
-    .m_axis_rq_tlast(axis_rq_tlast),
-    .m_axis_rq_tready(axis_rq_tready),
-    .m_axis_rq_tuser(axis_rq_tuser),
-    .m_axis_rq_tvalid(axis_rq_tvalid),
+    .m_axis_rq_tdata(axis_rq_tdata_cor),
+    .m_axis_rq_tkeep(axis_rq_tkeep_cor),
+    .m_axis_rq_tlast(axis_rq_tlast_cor),
+    .m_axis_rq_tready(axis_rq_tready_cor),
+    .m_axis_rq_tuser(axis_rq_tuser_cor),
+    .m_axis_rq_tvalid(axis_rq_tvalid_cor),
 
-    .s_axis_rc_tdata(axis_rc_tdata),
-    .s_axis_rc_tkeep(axis_rc_tkeep),
-    .s_axis_rc_tlast(axis_rc_tlast),
-    .s_axis_rc_tready(axis_rc_tready),
-    .s_axis_rc_tuser(axis_rc_tuser),
-    .s_axis_rc_tvalid(axis_rc_tvalid),
-
-    .s_axis_cq_tdata(axis_cq_tdata),
-    .s_axis_cq_tkeep(axis_cq_tkeep),
-    .s_axis_cq_tlast(axis_cq_tlast),
-    .s_axis_cq_tready(axis_cq_tready),
-    .s_axis_cq_tuser(axis_cq_tuser),
-    .s_axis_cq_tvalid(axis_cq_tvalid),
-
-    .m_axis_cc_tdata(axis_cc_tdata),
-    .m_axis_cc_tkeep(axis_cc_tkeep),
-    .m_axis_cc_tlast(axis_cc_tlast),
-    .m_axis_cc_tready(axis_cc_tready),
-    .m_axis_cc_tuser(axis_cc_tuser),
-    .m_axis_cc_tvalid(axis_cc_tvalid),
+    .s_axis_rc_tdata(axis_rc_tdata_cor),
+    .s_axis_rc_tkeep(axis_rc_tkeep_cor),
+    .s_axis_rc_tlast(axis_rc_tlast_cor),
+    .s_axis_rc_tready(axis_rc_tready_cor),
+    .s_axis_rc_tuser(axis_rc_tuser_cor),
+    .s_axis_rc_tvalid(axis_rc_tvalid_cor),
+   
+    .s_axis_cq_tdata(axis_cq_tdata_cor),
+    .s_axis_cq_tkeep(axis_cq_tkeep_cor),
+    .s_axis_cq_tlast(axis_cq_tlast_cor),
+    .s_axis_cq_tready(axis_cq_tready_cor),
+    .s_axis_cq_tuser(axis_cq_tuser_cor),
+    .s_axis_cq_tvalid(axis_cq_tvalid_cor),
+    
+    .m_axis_cc_tdata(axis_cc_tdata_cor),
+    .m_axis_cc_tkeep(axis_cc_tkeep_cor),
+    .m_axis_cc_tlast(axis_cc_tlast_cor),
+    .m_axis_cc_tready(axis_cc_tready_cor),
+    .m_axis_cc_tuser(axis_cc_tuser_cor),
+    .m_axis_cc_tvalid(axis_cc_tvalid_cor),
 
     .s_axis_rq_seq_num_0(pcie_rq_seq_num0),
     .s_axis_rq_seq_num_valid_0(pcie_rq_seq_num_vld0),

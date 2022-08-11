@@ -52,12 +52,16 @@ unsigned int mqnic_num_ev_queue_entries = 1024;
 unsigned int mqnic_num_tx_queue_entries = 1024;
 unsigned int mqnic_num_rx_queue_entries = 1024;
 
+/*Zynq related variables*/
+size_t size = 1024*4096;
+
 module_param_named(num_ev_queue_entries, mqnic_num_ev_queue_entries, uint, 0444);
 MODULE_PARM_DESC(num_ev_queue_entries, "number of entries to allocate per event queue (default: 1024)");
 module_param_named(num_tx_queue_entries, mqnic_num_tx_queue_entries, uint, 0444);
 MODULE_PARM_DESC(num_tx_queue_entries, "number of entries to allocate per transmit queue (default: 1024)");
 module_param_named(num_rx_queue_entries, mqnic_num_rx_queue_entries, uint, 0444);
 MODULE_PARM_DESC(num_rx_queue_entries, "number of entries to allocate per receive queue (default: 1024)");
+void *pa_ptr;
 
 unsigned int mqnic_link_status_poll = MQNIC_LINK_STATUS_POLL_MS;
 
@@ -614,12 +618,22 @@ static int mqnic_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 		goto fail_regions;
 	}
 
+	/*This section allocated a chunk of memory and gets its physical addr*/
+	
+	pa_ptr = (void*) kmalloc(size, GFP_DMA); //| GFP_DMA32);
+	if (!pa_ptr)
+		return -ENOMEM;
+	else
+		printk("Memory allcated and the physical address is: 0x%llx\n", virt_to_phys(pa_ptr));
+
 	mqnic->hw_regs_size = pci_resource_len(pdev, 0);
 	mqnic->hw_regs_phys = pci_resource_start(pdev, 0);
-	mqnic->app_hw_regs_size = pci_resource_len(pdev, 2);
-	mqnic->app_hw_regs_phys = pci_resource_start(pdev, 2);
-	mqnic->ram_hw_regs_size = pci_resource_len(pdev, 4);
-	mqnic->ram_hw_regs_phys = pci_resource_start(pdev, 4);
+	mqnic->zynq_hw_regs_size = pci_resource_len(pdev, 2);
+	mqnic->zynq_hw_regs_phys = pci_resource_start(pdev, 2);
+	mqnic->app_hw_regs_size = pci_resource_len(pdev, 4);
+	mqnic->app_hw_regs_phys = pci_resource_start(pdev, 4);
+	mqnic->ram_hw_regs_size = pci_resource_len(pdev, 5);
+	mqnic->ram_hw_regs_phys = pci_resource_start(pdev, 5);
 
 	// Map BARs
 	dev_info(dev, "Control BAR size: %llu", mqnic->hw_regs_size);
@@ -629,6 +643,22 @@ static int mqnic_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 		dev_err(dev, "Failed to map control BAR");
 		goto fail_map_bars;
 	}
+
+	if (mqnic->zynq_hw_regs_size) {
+		dev_info(dev, "Zynq BAR size: %llu", mqnic->zynq_hw_regs_size);
+		mqnic->zynq_hw_addr = pci_ioremap_bar(pdev, 2);
+		if (!mqnic->zynq_hw_addr) {
+			ret = -ENOMEM;
+			dev_err(dev, "Failed to map Zynq BAR");
+			goto fail_map_bars;
+		}
+	}
+
+	/*Write the physical address to the zynq ram and the read the address.
+	  This address is used by Zynq to issue memory read and write operations*/
+	//iowrite32(virt_to_phys(pa_ptr), mqnic->zynq_hw_addr);
+	//ioread32(mqnic->zynq_hw_addr);
+	//printk("Phy address read: 0x%x\n", ioread32(mqnic->zynq_hw_addr));
 
 	if (mqnic->app_hw_regs_size) {
 		dev_info(dev, "Application BAR size: %llu", mqnic->app_hw_regs_size);
